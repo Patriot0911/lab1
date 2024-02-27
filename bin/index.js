@@ -33,6 +33,16 @@ async function commandHandle(args, opts) {
     for(const [key, value] of convertEntries) {
         parsedText = replaceTag(parsedText, key, value);
     }
+    if(opts.output) {
+        try {
+            await fs.writeFile(opts.output, parsedText);
+        } catch (err) {
+            process.stderr.write(
+                `An error occurred in writing file.`
+            );
+            process.exit(0);
+        }
+    }
     console.log(parsedText);
 };
 
