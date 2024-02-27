@@ -1,0 +1,16 @@
+{
+  "name": "lab1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./bin/index.js",
+  "type": "module",
+  "bin": {
+    "mycli": "./bin/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^12.0.0"
+  }
+}
