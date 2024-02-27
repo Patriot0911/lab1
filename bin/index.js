@@ -3,9 +3,12 @@ import fs from 'node:fs/promises';
 import { program } from 'commander';
 
 const pTag = 'p>';
+
 const codeBlock = '```';
+const codeTag = 'pre';
+
 const convertData = {
-    [codeBlock]:'pre',
+    [codeBlock]: codeTag,
     '**':       'b',
     '_':        'i',
     '`':        'tt'
@@ -33,22 +36,19 @@ async function commandHandle(args, opts) {
     console.log(parsedText);
 };
 
+const getRegexCount = (text, regex) => ((text || '').match(regex) || []).length;
+
 function replaceTag(parsedText, key, value) {
     const contentPart = key.length === 1 ? key : key.split('').join('\\');
     const startPatern = `\\s\\${contentPart}[^\\s]`;
     const endPatern = `[^\\s]\\${contentPart}\\s`;
     const regConstruct = `${startPatern}|${endPatern}`;
     const testReg = new RegExp(regConstruct, 'g');
-    console.log(testReg);
     const isInclude = testReg.test(parsedText);
     if(!isInclude)
         return parsedText;
-    const startCount = ((parsedText || '').match(
-        new RegExp(startPatern, 'g')
-    ) || []).length;
-    const endCount = ((parsedText || '').match(
-        new RegExp(endPatern, 'g')
-    ) || []).length;
+    const startCount = getRegexCount(parsedText, new RegExp(startPatern, 'g'));
+    const endCount = getRegexCount(parsedText, new RegExp(endPatern, 'g'));
     if(startCount !== endCount) {
         process.stderr.write(
             `An error occurred in the markdown syntax. (synt: [ ${key} ])`
@@ -64,8 +64,6 @@ function replaceTag(parsedText, key, value) {
             startReg,
             key, value
         );
-    }
-    for(let i = 0; i < endCount; i++) {
         bufferString = partiattialyReplaceReg(
             bufferString,
             endReg,
@@ -76,13 +74,35 @@ function replaceTag(parsedText, key, value) {
     return bufferString;
 };
 
-function partiattialyReplaceReg(text, reg, key, value, isStart=true){
+const isInCodeBlock = (text, index, count, times = 0, lastIndex = 0) => {
+    const codeBlockStartIndex = text.indexOf(`<${codeTag}>`, lastIndex);
+    const codeBlockEndIndex = text.indexOf(`</${codeTag}>`, lastIndex);
+    if(
+        codeBlockStartIndex < index
+        &&
+        index < codeBlockEndIndex
+    ) return true;
+    if(count === times)
+        return false;
+    return isInCodeBlock(text, index, count, times+1, codeBlockEndIndex+1);
+};
+
+function partiattialyReplaceReg(text, reg, key, value, isStart=true) {
     const index = text.search(reg);
+    const codeTagCount = getRegexCount(text, new RegExp(`<${codeTag}>`, 'g'));
+    if(codeTagCount > 0 && key !== codeBlock) {
+        const isInCode = isInCodeBlock(text, index, codeTagCount);
+        if(isInCode) {
+            const beforeTag = text.slice(0, index+key.length);
+            const afterTag =  text.slice(index+key.length+1, text.length);
+            return [beforeTag, key, afterTag].join(' ');
+        }
+    };
     const tag = isStart ? `<${value}>` : `</${value}>`;
     const firstPart = text.slice(0, index+1);
     const lastPart = text.slice(index+key.length+1, text.length);
     return [firstPart, tag, lastPart].join('');
-}
+};
 
 async function parseMdFileData(path) {
     const newLineRegex = new RegExp(/\r\n/g);
