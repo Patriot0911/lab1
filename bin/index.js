@@ -43,30 +43,32 @@ async function commandHandle(args, opts) {
             process.exit(0);
         }
     }
+    parsedText = parsedText.replace(/\t\t/g, '');
     console.log(parsedText);
 };
 
-const getRegexCount = (text, regex) => ((text || '').match(regex) || []).length;
+const getRegexCount = (string, regex) => ((string || '').match(regex) || []).length;
 
 function replaceTag(parsedText, key, value) {
-    const contentPart = key.length === 1 ? key : key.split('').join('\\');
-    const startPatern = `\\s\\${contentPart}[^\\s]`;
-    const endPatern = `[^\\s]\\${contentPart}\\s`;
-    const regConstruct = `${startPatern}|${endPatern}`;
+    const {
+        openTag,
+        closeTag
+    } = getInTagAttributes(key, true);
+    const regConstruct = `${openTag}|${closeTag}`;
     const testReg = new RegExp(regConstruct, 'g');
     const isInclude = testReg.test(parsedText);
     if(!isInclude)
         return parsedText;
-    const startCount = getRegexCount(parsedText, new RegExp(startPatern, 'g'));
-    const endCount = getRegexCount(parsedText, new RegExp(endPatern, 'g'));
+    const startCount = getRegexCount(parsedText, new RegExp(openTag, 'g'));
+    const endCount = getRegexCount(parsedText, new RegExp(closeTag, 'g'));
     if(startCount !== endCount) {
         process.stderr.write(
             `An error occurred in the markdown syntax. (synt: [ ${key} ])`
         );
         process.exit(0);
     }
-    const startReg = new RegExp(startPatern, 'g');
-    const endReg = new RegExp(endPatern, 'g');
+    const startReg = new RegExp(openTag, 'g');
+    const endReg = new RegExp(closeTag, 'g');
     let bufferString = parsedText;
     for(let i = 0; i < startCount; i++) {
         bufferString = partiattialyReplaceReg(
@@ -84,30 +86,113 @@ function replaceTag(parsedText, key, value) {
     return bufferString;
 };
 
-const isInCodeBlock = (text, index, count, times = 0, lastIndex = 0) => {
-    const codeBlockStartIndex = text.indexOf(`<${codeTag}>`, lastIndex);
-    const codeBlockEndIndex = text.indexOf(`</${codeTag}>`, lastIndex);
-    if(
-        codeBlockStartIndex < index
-        &&
-        index < codeBlockEndIndex
-    ) return true;
-    if(count === times)
+const checkByTagsCount = (text, index, tag, useTag, checkerCount, useRegex) => {
+    const tagChecker = isInTag(text, index, useTag, checkerCount, useRegex);
+    if(tagChecker) {
+        if(tag === codeBlock)
+            return true;
+        process.stderr.write(
+            `An error occurred in the markdown syntax.\nDouble tag is provided(inside of [ ${tag} ])`
+        );
+        process.exit(0);
+    };
+    return false;
+};
+
+const checkIsInAllTags = (text, index, key, tagIndex = 0) => {
+    const tagsArray = Object.entries(convertData);
+    const tag = tagsArray[tagIndex][0];
+    const htmlTag = tagsArray[tagIndex][1];
+    const openTag = `<${htmlTag}>`;
+    const closeTag = `</${htmlTag}>`;
+    const contentPart = tag.length === 1 ? tag : tag.split('').join('\\');
+    const startPatern = `\\s\\${contentPart}[^\\s]`;
+    const tagsRegexCount = getRegexCount(text, startPatern);
+    if(key === tag || !new String(key).includes(tag)) {
+        const htmlStartTagsCount = getRegexCount(text, new RegExp(openTag, 'g'));
+        const htmlEndTagsCount = getRegexCount(text, new RegExp(closeTag, 'g'));
+        if(htmlStartTagsCount > 0 && htmlStartTagsCount === htmlEndTagsCount) {
+            if(checkByTagsCount(text, index, tag, htmlTag, htmlStartTagsCount, false))
+                return true;
+        }
+        if(tagsRegexCount > 0) {
+            if(checkByTagsCount(text, index, tag, tag, tagsRegexCount, true))
+                return true;
+        }
+    }
+    if(tagIndex+1 !== tagsArray.length)
+        return checkIsInAllTags(text, index, key, tagIndex+1);
+    return false;
+};
+
+const isInTag = (text, index, tag, count, regex, times = 0, lastIndex = 0) => {
+    const tagAttributes = getInTagAttributes(tag, regex);
+    const {
+        closeTagIndex,
+        openTagIndex
+    } = getTagIndices(text, lastIndex, tagAttributes, regex);
+    if(openTagIndex !== index) {
+        if(closeTagIndex === -1 && openTagIndex < index) {
+            return true;
+        }
+        if(openTagIndex < index && index < closeTagIndex)
+            return true;
+    };
+    if(count-1 === times)
         return false;
-    return isInCodeBlock(text, index, count, times+1, codeBlockEndIndex+1);
+    return isInTag(text, index, tag, count, regex, times+1, closeTagIndex ? closeTagIndex : openTagIndex+1);
+};
+
+const getTagIndices = (text, lastIndex, tagAttributes, regex = false) => {
+    const { openTag, closeTag } = tagAttributes;
+    if(regex) {
+        const openTagIndex = regexIndexOf(text, openTag, lastIndex);
+        const closeTagIndex = regexIndexOf(text, closeTag, lastIndex+1);
+        return {
+            openTagIndex,
+            closeTagIndex
+        };
+    }
+    const openTagIndex = text.indexOf(openTag, lastIndex);
+    const closeTagIndex = text.indexOf(closeTag, lastIndex+1);
+    return {
+        openTagIndex,
+        closeTagIndex
+    };
+}
+
+const getInTagAttributes = (tag, isRegex = false) => {
+    if(!isRegex) {
+        const openTag = `<${tag}>`;
+        const closeTag = `</${tag}>`;
+        return {
+            openTag,
+            closeTag
+        };
+    }
+    const contentPart = tag.length === 1 ? tag : tag.split('').join('\\');
+    const openTag = `\\s\\${contentPart}[^\\s]`;
+    const closeTag = `[^\\s]\\${contentPart}\\s`;
+    return {
+        openTag,
+        closeTag
+    };
+};
+
+
+const regexIndexOf = (string, regex, startpos) => {
+    const indexOf = string.substring(startpos || 0).search(regex);
+    return indexOf >= 0 ? (indexOf + (startpos || 0)) : indexOf;
 };
 
 function partiattialyReplaceReg(text, reg, key, value, isStart=true) {
     const index = text.search(reg);
-    const codeTagCount = getRegexCount(text, new RegExp(`<${codeTag}>`, 'g'));
-    if(codeTagCount > 0 && key !== codeBlock) {
-        const isInCode = isInCodeBlock(text, index, codeTagCount);
-        if(isInCode) {
-            const beforeTag = text.slice(0, index+key.length);
-            const afterTag =  text.slice(index+key.length+1, text.length);
-            return [beforeTag, key, afterTag].join(' ');
-        }
-    };
+    const isInTag = checkIsInAllTags(text, index, key);
+    if(isInTag) {
+        const beforeTag = text.slice(0, index+key.length);
+        const afterTag =  text.slice(index+key.length+1, text.length);
+        return [beforeTag, key, afterTag].join('\t\t');
+    }
     const tag = isStart ? `<${value}>` : `</${value}>`;
     const firstPart = text.slice(0, index+1);
     const lastPart = text.slice(index+key.length+1, text.length);
