@@ -36,13 +36,27 @@ program
         new Option(
             '-f, --format [value]', 'Output type'
         ).choices(['html', 'ansi'])
+        .argParser((str, prev) => {
+            if(str !== 'html' && str !== 'ansi') {
+                process.stderr.write(
+                    `Error: option '-f, --format [value]' argument '${str}' is invalid. Allowed choices are html, ansi.`
+                );
+                process.exit(0);
+            }
+            return str;
+        })
     )
     .parse(process.argv)
+    .exitOverride(
+        (e) => {
+            process.stderr.write('s');
+            process.exit(0);
+        }
+    )
     .action(commandHandle);
 program.parse();
 
 async function commandHandle(args, opts) {
-    console.log(args);
     if(typeof args !== 'string')
         return process.stderr.write('Argument type is invalid');
     const mdPath = args.endsWith('.md') ? args : args.concat('.md');
@@ -284,6 +298,7 @@ async function parseMdFileData(path) {
             'The file cannot be found.\n' +
             'Make sure it\'s in \'.md\' format and you\'ve specified the correct path'
         );
+        process.exit(0);
     }
 };
 
