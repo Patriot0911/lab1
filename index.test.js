@@ -5,12 +5,12 @@ const correctString = `
 > lab1@1.0.0 test_coorect_format
 > node ./bin/index.js ./successfulFile.md --format html
 
-Hi, I am title!
+ Hi, I am title!
 <b>bold *test* text</b>
-<tt>not fine</tt>
+ <tt>not fine</tt>
 <pre>tet</pre>
 <pre>some text go here _eqwe_ * ew * end of</pre>
-<i>test</i>`;
+ <i>test</i>`;
 
 describe('MyCli', () => {
         test('exec with wrong flag', async() => {
