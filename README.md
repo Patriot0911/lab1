@@ -18,9 +18,22 @@
 ```
 ## Usage
 ```
-> mycli <path> [-o <path>]
+Run test
+> npm test
+// Чомусь один з тестів працює по-різному для CI і для тестів у проєкті, тому при запуску тестів зі скріпту - виникне помилка
+
+> mycli <path> [-o <path>] [-f <value>]
+OR
+> node ./bin/index.js <path> options
 ```
 ![скріншот](https://github.com/Patriot0911/mpz_lab1/assets/75264092/8ab0674d-beb6-4947-a163-23dfa2c73e51)
+![Ansi скріншот](https://github.com/Patriot0911/mpz_lab1/assets/75264092/13e0e712-fb06-4415-9c8f-f69179dfc636)
 
 ## Revert Commit
 [Click on me](https://github.com/Patriot0911/mpz_lab1/commit/45df685f8689a4edfa47c26d5ca66625a47d6b60)
+
+## Failed Commit
+[Click on Me](https://github.com/Patriot0911/mpz_lab1/commit/40b178c8c631de7ae8670339b19801a9e42288c1)
+
+## Висновок
+Використання Unit тестів звісно є доволі корисною навичкою, проте варто розуміти, що для певних проєктів це може бути зайвим. До прикладу у цьому випадку це звісно є доволі корисним використанням, як і для певних більших проєктів. Проте, як на мою думку, для тих самих Front-end застосунків вони іноді можуть бути не те що зайвими, але не завжди потрібними.
