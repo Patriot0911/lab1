@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import fs from 'node:fs/promises';
-import { Option, program } from 'commander';
+const fs = require('node:fs/promises');
+const { Option, program } = require('commander');
 
 const pTag = 'p>';
 
@@ -42,6 +42,7 @@ program
 program.parse();
 
 async function commandHandle(args, opts) {
+    console.log(args);
     if(typeof args !== 'string')
         return process.stderr.write('Argument type is invalid');
     const mdPath = args.endsWith('.md') ? args : args.concat('.md');
@@ -52,6 +53,7 @@ async function commandHandle(args, opts) {
     if(opts.output)
         await tryToWriteOutput(parsedText);
     process.stdout.write(parsedText);
+    return parsedText;
 };
 
 const getTagParsedText = (text, isHtml) => {
@@ -283,4 +285,8 @@ async function parseMdFileData(path) {
             'Make sure it\'s in \'.md\' format and you\'ve specified the correct path'
         );
     }
+};
+
+module.exports = {
+    commandHandle
 };
