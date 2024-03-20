@@ -7,11 +7,25 @@ const pTag = 'p>';
 const codeBlock = '```';
 const codeTag = 'pre';
 
+const ansiClear = '\x1b[0m';
+
 const convertData = {
-    [codeBlock]: codeTag,
-    '**':       'b',
-    '_':        'i',
-    '`':        'tt'
+    [codeBlock]: {
+        html: codeTag,
+        ansi: '\x1b[7m',
+    },
+    '**': {
+        html: 'b',
+        ansi: '\x1b[1m',
+    },
+    '_': {
+        html: 'i',
+        ansi: '\x1b[3m',
+    },
+    '`': {
+        html: 'tt',
+        ansi: '\x1b[33m',
+    },
 };
 
 program
@@ -31,21 +45,53 @@ async function commandHandle(args, opts) {
     if(typeof args !== 'string')
         return process.stderr.write('Argument type is invalid');
     const mdPath = args.endsWith('.md') ? args : args.concat('.md');
+    const isHtml = !opts.format ? !!opts.output : (opts.format === 'html');
     const parsedMdFileText = await parseMdFileData(mdPath);
     console.clear();
-    const parsedText = getTagParsedText(parsedMdFileText);
+    const parsedText = getTagParsedText(parsedMdFileText, isHtml);
     if(opts.output)
         await tryToWriteOutput(parsedText);
-    process.stdout.write(parsedText.replace(/\t\t/g, ''));
+    process.stdout.write(parsedText);
 };
 
-const getTagParsedText = (text) => {
-    const convertEntries = Object.entries(convertData);
-    let parsedText = text;
-    for(const [key, value] of convertEntries) {
-        parsedText = replaceTag(parsedText, key, value);
-    }
+const getTagParsedText = (text, isHtml) => {
+    const parsedText = getHtmlParsedText(text);
+    if(!isHtml)
+        return convertHtmlToAnsi(parsedText);
     return parsedText;
+};
+
+const getHtmlParsedText = (text, index = 0) => {
+    const convertEntries = Object.entries(convertData);
+    if(index === convertEntries.length)
+        return text.replace(/\t\t/g, '');
+    const [key, value] = convertEntries[index];
+    const newText = replaceTag(text, key, value.html);
+    return getHtmlParsedText(newText, index+1);
+};
+
+const getHtmlTagInsideRegex = (tag) => {
+    const begin = `<${tag}>\\s*`;
+    const end = `\\s*</${tag}>`;
+    const concated = `${begin}(.*?)${end}`;
+    const regex = new RegExp(concated, 'g');
+    return regex;
+};
+
+const convertHtmlToAnsi = (text, index = 0) => {
+    const convertedDataArray = Object.entries(convertData);
+    if(index === convertedDataArray.length) {
+        const regex = getHtmlTagInsideRegex(pTag.slice(0, 1));
+        return text.replace(regex,
+            (_, content) => '' + content + ''
+        );
+    }
+    const [_, value] = convertedDataArray[index];
+    const regex = getHtmlTagInsideRegex(value.html);
+    const newText = text.replace(regex,
+        (_, content) => value.ansi + content + ansiClear
+    );
+    return convertHtmlToAnsi(newText, index+1);
 };
 
 const tryToWriteOutput = async (text) => {
@@ -81,7 +127,16 @@ function replaceTag(parsedText, key, value) {
     }
     const startReg = new RegExp(openTag, 'g');
     const endReg = new RegExp(closeTag, 'g');
-    let bufferString = parsedText;
+    const partitalReplacedString = blockPartiattialyReplace(
+        parsedText, startCount,
+        key, value,
+        startReg, endReg
+    );
+    return partitalReplacedString;
+};
+
+const blockPartiattialyReplace = (text, startCount, key, value, startReg,  endReg) => {
+    let bufferString = text;
     for(let i = 0; i < startCount; i++) {
         bufferString = partiattialyReplaceReg(
             bufferString,
@@ -96,7 +151,7 @@ function replaceTag(parsedText, key, value) {
         );
     }
     return bufferString;
-};
+}
 
 const checkByTagsCount = (text, index, tag, useTag, checkerCount, useRegex) => {
     const tagChecker = isInTag(text, index, useTag, checkerCount, useRegex);
@@ -114,7 +169,7 @@ const checkByTagsCount = (text, index, tag, useTag, checkerCount, useRegex) => {
 const checkIsInAllTags = (text, index, key, tagIndex = 0) => {
     const tagsArray = Object.entries(convertData);
     const tag = tagsArray[tagIndex][0];
-    const htmlTag = tagsArray[tagIndex][1];
+    const htmlTag = tagsArray[tagIndex][1].html;
     const openTag = `<${htmlTag}>`;
     const closeTag = `</${htmlTag}>`;
     const contentPart = tag.length === 1 ? tag : tag.split('').join('\\');
