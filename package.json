@@ -8,7 +8,11 @@
     "mycli": "./bin/index.js"
   },
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test_appcli_wrong_arg": "node ./bin/index.js ./successfulFile.md -f test",
+    "test_incorrect_file": "node ./bin/index.js ./successfulF2ile.md",
+    "test_wrong_format": "node ./bin/index.js ./wrongFormatedFile.md",
+    "test_coorect_format": "node ./bin/index.js ./successfulFile.md --format html"
   },
   "keywords": [],
   "author": "",
