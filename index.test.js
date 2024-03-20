@@ -1,11 +1,7 @@
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 
-const correctString = `
-> lab1@1.0.0 test_coorect_format
-> node ./bin/index.js ./successfulFile.md --format html
-
-<p> Hi, I am title! </p>
+const correctString = `<p> Hi, I am title! </p>
 <p> <b>bold *test* text</b> </p>
 <p>  <tt>not fine</tt> </p>
 <p> <pre>tet</pre> </p>
@@ -14,7 +10,6 @@ const correctString = `
 
 describe('MyCli', () => {
         test('exec with wrong flag', async() => {
-            // console.log("TEST" + (await exec('mycli ./successfulFile.md -f test')))
             expect(
                 (await exec('npm run test_appcli_wrong_arg')).stderr
             )
