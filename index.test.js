@@ -10,7 +10,7 @@ const correctString = `
  <tt>not fine</tt>
 <pre>tet</pre>
 <pre>some text go here _eqwe_ * ew * end of</pre>
-<i>test</i>`;
+<i>test</i> `;
 
 describe('MyCli', () => {
         test('exec with wrong flag', async() => {
