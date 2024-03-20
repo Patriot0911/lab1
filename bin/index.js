@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
-import { program } from 'commander';
+import { Option, program } from 'commander';
 
 const pTag = 'p>';
 
@@ -18,6 +18,11 @@ program
     .description('Simple Test')
     .argument('path', 'path to md file')
     .option('-o, --output <path>', 'path to output converted text')
+    .addOption(
+        new Option(
+            '-f, --format [value]', 'Output type'
+        ).choices(['html', 'ansi'])
+    )
     .parse(process.argv)
     .action(commandHandle);
 program.parse();
@@ -28,23 +33,30 @@ async function commandHandle(args, opts) {
     const mdPath = args.endsWith('.md') ? args : args.concat('.md');
     const parsedMdFileText = await parseMdFileData(mdPath);
     console.clear();
+    const parsedText = getTagParsedText(parsedMdFileText);
+    if(opts.output)
+        await tryToWriteOutput(parsedText);
+    process.stdout.write(parsedText.replace(/\t\t/g, ''));
+};
+
+const getTagParsedText = (text) => {
     const convertEntries = Object.entries(convertData);
-    let parsedText = parsedMdFileText;
+    let parsedText = text;
     for(const [key, value] of convertEntries) {
         parsedText = replaceTag(parsedText, key, value);
     }
-    if(opts.output) {
-        try {
-            await fs.writeFile(opts.output, parsedText);
-        } catch (err) {
-            process.stderr.write(
-                `An error occurred in writing file.`
-            );
-            process.exit(0);
-        }
+    return parsedText;
+};
+
+const tryToWriteOutput = async (text) => {
+    try {
+        await fs.writeFile(opts.output, parsedText);
+    } catch (err) {
+        process.stderr.write(
+            `An error occurred in writing file.`
+        );
+        process.exit(0);
     }
-    parsedText = parsedText.replace(/\t\t/g, '');
-    console.log(parsedText);
 };
 
 const getRegexCount = (string, regex) => ((string || '').match(regex) || []).length;
